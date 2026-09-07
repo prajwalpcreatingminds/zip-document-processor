@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --bg-main: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --border-card: #E2E8F0;
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-glow: rgba(37, 99, 235, 0.15);
+  --text-main: #0F172A;
+  --text-secondary: #64748B;
+  --light-accent: #EFF6FF;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+}
+
+body {
+  background-color: #FFFFFF;
+  background-image: 
+    radial-gradient(at 15% 10%, rgba(37, 99, 235, 0.04) 0px, transparent 40%),
+    radial-gradient(at 85% 15%, rgba(239, 246, 255, 0.9) 0px, transparent 50%),
+    radial-gradient(at 50% 90%, rgba(37, 99, 235, 0.03) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: #0F172A;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Card Utility */
+.glass-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+}
+
+.glass-card-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: #2563EB;
+  box-shadow: 0 12px 24px -4px rgba(37, 99, 235, 0.12);
+}
+
+/* Glow effects */
+.glow-blue {
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.15);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
