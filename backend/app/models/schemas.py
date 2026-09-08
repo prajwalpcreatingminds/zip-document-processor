@@ -20,15 +20,19 @@ class ExtractionResponse(BaseModel):
     job_id: str
     folder_name: str
     original_zip: str
-    total_supported_files: int
+    total_supported_files: int = 0
+    total_files: int = 0
     word_files: int
     word_file_list: list[str] = []
     existing_pdf_files: int
     existing_pdf_list: list[str] = []
-    unsupported_files: int
+    other_files: int = 0
+    other_file_list: list[str] = []
+    unsupported_files: int = 0
     unsupported_file_list: list[str] = []
     word_folder: str
     pdf_folder: str
+    other_folder: Optional[str] = None
     message: str = "Files extracted and organized successfully."
 
 
@@ -86,3 +90,93 @@ class ConversionRecordModel(BaseModel):
     conversion_status: str  # "SUCCESS" | "FAILED"
     error_message: Optional[str] = None
     duration_seconds: Optional[float] = None
+
+
+class BatchJobInfo(BaseModel):
+    job_id: str
+    folder_name: str
+    original_zip: str
+    filename: Optional[str] = None
+    file_size_bytes: int = 0
+    order: int = 1
+
+
+class BatchUploadResponse(BaseModel):
+    success: bool = True
+    batch_id: str
+    total_jobs: int
+    jobs: list[BatchJobInfo]
+    message: str = "Batch archives uploaded and staged successfully."
+
+
+class BatchStatusResponse(BaseModel):
+    batch_id: str
+    total_jobs: int
+    completed_jobs: int
+    failed_jobs: int
+    is_finished: bool
+    jobs: list[JobStatusResponse]
+
+
+class UnfinishedJobItem(BaseModel):
+    job_id: str
+    batch_id: Optional[str] = None
+    folder_name: str
+    original_archive_name: str
+    archive_format: Optional[str] = None
+    stage: str
+    step: int = 1
+    is_unfinished: bool = True
+    user_saved: bool = False
+    total_files: int = 0
+    word_files_count: int = 0
+    converted_count: int = 0
+    failed_count: int = 0
+    error_message: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class UnfinishedJobsResponse(BaseModel):
+    success: bool = True
+    total: int = 0
+    jobs: list[UnfinishedJobItem] = []
+
+
+class ResumeJobResponse(BaseModel):
+    success: bool = True
+    job_id: str
+    batch_id: Optional[str] = None
+    folder_name: str
+    original_archive_name: str
+    stage: str
+    step: int
+    target_route: str
+    extraction_summary: Optional[ExtractionResponse] = None
+    conversion_summary: Optional[ConversionResponse] = None
+    converted_count: int = 0
+    total_to_convert: int = 0
+    message: str = "Job recovered and resumed successfully."
+
+
+class SaveExitRequest(BaseModel):
+    job_id: str
+    folder_name: Optional[str] = None
+    step: Optional[int] = None
+
+
+class PdfViewRequest(BaseModel):
+    job_id: str
+    filename: str
+
+
+class PdfViewResponse(BaseModel):
+    success: bool = True
+    job_id: str
+    filename: str
+    base64_data: str
+    mime_type: str = "application/pdf"
+    size_bytes: int
+    message: str = "PDF retrieved successfully."
+
+

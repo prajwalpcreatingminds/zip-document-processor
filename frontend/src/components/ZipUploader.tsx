@@ -14,14 +14,27 @@ export function ZipUploader({ selectedFile, onFileSelect, onNext }: ZipUploaderP
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isSupportedArchive = (filename: string): boolean => {
+    const lower = filename.toLowerCase();
+    return (
+      lower.endsWith(".zip") ||
+      lower.endsWith(".rar") ||
+      lower.endsWith(".7z") ||
+      lower.endsWith(".tar") ||
+      lower.endsWith(".tgz") ||
+      lower.endsWith(".tar.gz") ||
+      lower.endsWith(".tar.xz")
+    );
+  };
+
   const validateAndSetFile = (file: File) => {
     setErrorMessage(null);
-    if (!file.name.toLowerCase().endsWith(".zip")) {
-      setErrorMessage("Only ZIP (.zip) files are allowed.");
+    if (!isSupportedArchive(file.name)) {
+      setErrorMessage("Invalid file format. Supported archive formats: .zip, .rar, .7z, .tar, .tgz, .tar.xz");
       return;
     }
     if (file.size === 0) {
-      setErrorMessage("The selected ZIP file is empty.");
+      setErrorMessage("The selected archive file is empty.");
       return;
     }
     onFileSelect(file);
@@ -55,10 +68,10 @@ export function ZipUploader({ selectedFile, onFileSelect, onNext }: ZipUploaderP
             Step 1 of 5
           </span>
           <h2 className="text-2xl font-bold text-[#0F172A] tracking-tight">
-            Upload ZIP File
+            Upload Archive File
           </h2>
           <p className="text-[#64748B] text-sm mt-1">
-            Select a ZIP archive containing Word (.doc, .docx) and PDF documents to begin processing.
+            Select an archive containing Word (.doc, .docx) and PDF documents to begin processing.
           </p>
         </div>
 
@@ -87,7 +100,7 @@ export function ZipUploader({ selectedFile, onFileSelect, onNext }: ZipUploaderP
             <input
               ref={fileInputRef}
               type="file"
-              accept=".zip,application/zip,application/x-zip-compressed"
+              accept=".zip,.rar,.7z,.tar,.tgz,.tar.gz,.tar.xz,application/zip,application/x-zip-compressed,application/x-rar-compressed,application/x-7z-compressed,application/x-tar,application/gzip,application/x-xz"
               onChange={handleFileChange}
               className="hidden"
             />
@@ -95,14 +108,14 @@ export function ZipUploader({ selectedFile, onFileSelect, onNext }: ZipUploaderP
               <UploadCloud className="w-8 h-8" />
             </div>
             <p className="text-base font-semibold text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
-              Drag &amp; Drop ZIP Here
+              Drag &amp; Drop Archive Here
             </p>
             <p className="text-xs text-[#64748B] mt-1">
               or <span className="text-[#2563EB] font-medium underline underline-offset-4">browse from your computer</span>
             </p>
             <div className="mt-4 flex items-center gap-2 text-xs text-[#64748B] bg-white px-3 py-1.5 rounded-lg border border-[#E2E8F0]">
               <FileArchive className="w-4 h-4 text-[#2563EB]" />
-              <span>Supported format: .zip archives up to 200MB</span>
+              <span>Supported formats: .zip, .rar, .7z, .tar, .tgz, .tar.xz up to 200MB</span>
             </div>
           </div>
         ) : (

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { ConversionRecord } from "@/types";
-import { getConversionHistory } from "@/services/api";
+import { getConversionHistory, viewPdf } from "@/services/api";
+import { PdfViewerModal } from "@/components/PdfViewerModal";
 import {
   Database,
   Search,
@@ -14,6 +15,7 @@ import {
   FileText,
   FileCheck2,
   ArrowLeft,
+  Eye,
 } from "lucide-react";
 
 interface HistoryViewerProps {
@@ -26,6 +28,81 @@ export function HistoryViewer({ onBack }: HistoryViewerProps) {
   const [statusFilter, setStatusFilter] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // PDF Viewer Modal state
+  const [previewState, setPreviewState] = useState<{
+    isOpen: boolean;
+    jobId: string | null;
+    filename: string | null;
+    base64Data: string | null;
+    sizeBytes: number | null;
+    isLoading: boolean;
+    errorMessage: string | null;
+  }>({
+    isOpen: false,
+    jobId: null,
+    filename: null,
+    base64Data: null,
+    sizeBytes: null,
+    isLoading: false,
+    errorMessage: null,
+  });
+
+  const handleOpenPdfPreview = async (rec: ConversionRecord) => {
+    if (!rec.pdfFileName) return;
+
+    if (!rec.jobId) {
+      setPreviewState({
+        isOpen: true,
+        jobId: null,
+        filename: rec.pdfFileName,
+        base64Data: null,
+        sizeBytes: null,
+        isLoading: false,
+        errorMessage: "Preview unavailable: No job identifier found for this legacy conversion record.",
+      });
+      return;
+    }
+
+    setPreviewState({
+      isOpen: true,
+      jobId: rec.jobId,
+      filename: rec.pdfFileName,
+      base64Data: null,
+      sizeBytes: null,
+      isLoading: true,
+      errorMessage: null,
+    });
+
+    try {
+      const res = await viewPdf(rec.jobId, rec.pdfFileName);
+      setPreviewState((prev) => ({
+        ...prev,
+        isLoading: false,
+        base64Data: res.base64_data,
+        sizeBytes: res.size_bytes,
+        errorMessage: null,
+      }));
+    } catch (err: any) {
+      setPreviewState((prev) => ({
+        ...prev,
+        isLoading: false,
+        errorMessage: err.message || "Failed to load PDF preview from server.",
+      }));
+    }
+  };
+
+  const handleClosePdfPreview = () => {
+    setPreviewState({
+      isOpen: false,
+      jobId: null,
+      filename: null,
+      base64Data: null,
+      sizeBytes: null,
+      isLoading: false,
+      errorMessage: null,
+    });
+  };
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -170,9 +247,20 @@ export function HistoryViewer({ onBack }: HistoryViewerProps) {
                       {rec.wordFileName}
                     </td>
                     <td className="px-4 py-3 text-emerald-700">
-                      {rec.pdfFileName ? (
-                        <span className="flex items-center gap-1.5">
-                          <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                      {rec.pdfFileName && rec.conversionStatus === "SUCCESS" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPdfPreview(rec)}
+                          className="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1.5 hover:underline group cursor-pointer text-left"
+                          title={rec.jobId ? `Click to preview: ${rec.pdfFileName}` : "Preview unavailable for legacy record"}
+                        >
+                          <FileCheck2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                          <span className="truncate max-w-xs">{rec.pdfFileName}</span>
+                          <Eye className="w-3 h-3 text-emerald-500 opacity-70 group-hover:opacity-100 flex-shrink-0 ml-1" />
+                        </button>
+                      ) : rec.pdfFileName ? (
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <FileCheck2 className="w-3.5 h-3.5 text-slate-400" />
                           {rec.pdfFileName}
                         </span>
                       ) : (
@@ -214,6 +302,31 @@ export function HistoryViewer({ onBack }: HistoryViewerProps) {
           </table>
         </div>
       </div>
+
+      {/* Feature 5: In-Browser Native PDF Viewer Modal */}
+      <PdfViewerModal
+        isOpen={previewState.isOpen}
+        onClose={handleClosePdfPreview}
+        filename={previewState.filename}
+        base64Data={previewState.base64Data}
+        sizeBytes={previewState.sizeBytes}
+        isLoading={previewState.isLoading}
+        errorMessage={previewState.errorMessage}
+        onRetry={() => {
+          if (previewState.filename) {
+            handleOpenPdfPreview({
+              _id: "",
+              jobId: previewState.jobId || "",
+              pdfFileName: previewState.filename,
+              wordFileName: "",
+              sourceFolder: "",
+              convertedAt: "",
+              conversionStatus: "SUCCESS",
+            });
+          }
+        }}
+      />
     </div>
   );
 }
+

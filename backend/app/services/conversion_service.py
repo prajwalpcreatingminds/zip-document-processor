@@ -251,16 +251,34 @@ class ConversionService:
 
         raise RuntimeError(f"All conversion engines failed for {input_path.name}: {'; '.join(errors)}")
 
+    @staticmethod
+    def is_valid_pdf(pdf_path: Path) -> bool:
+        """
+        Validates that a PDF exists, has non-zero size, and starts with a valid '%PDF-' header.
+        """
+        if not pdf_path.exists() or not pdf_path.is_file():
+            return False
+        try:
+            if pdf_path.stat().st_size <= 0:
+                return False
+            with open(pdf_path, "rb") as f:
+                header = f.read(10)
+            return header.startswith(b"%PDF-")
+        except Exception:
+            return False
+
     @classmethod
     async def convert_all_word_documents(
         cls,
         parent_folder: Path,
-        progress_callback: Optional[Callable[[dict[str, Any]], Any]] = None
+        progress_callback: Optional[Callable[[dict[str, Any]], Any]] = None,
+        skip_existing_valid: bool = True,
     ) -> dict[str, Any]:
         """
         Converts all .doc and .docx files located in <parent_folder>/Word/
         and saves generated PDFs into <parent_folder>/PDF/.
         Leaves original Word documents untouched in Word/.
+        If skip_existing_valid is True, verifies and skips already completed valid PDFs.
         """
         word_dir = parent_folder / "Word"
         pdf_dir = parent_folder / "PDF"
@@ -278,13 +296,43 @@ class ConversionService:
         converted_results: list[ConversionFileResult] = []
         failed_results: list[ConversionFileResult] = []
 
-        logger.info(f"Starting conversion of {total_files} Word document(s) in {word_dir}")
+        logger.info(f"Starting conversion of {total_files} Word document(s) in {word_dir} (skip_existing={skip_existing_valid})")
 
         for index, word_path in enumerate(word_files, start=1):
             pdf_filename = f"{word_path.stem}.pdf"
             pdf_target_path = pdf_dir / pdf_filename
 
-            # If a PDF with this exact name already exists, generate a safe unique name
+            # If skip_existing_valid is True, check if valid PDF already exists
+            if skip_existing_valid and pdf_target_path.exists():
+                if cls.is_valid_pdf(pdf_target_path):
+                    logger.info(f"[{index}/{total_files}] Skipping already converted valid PDF: {pdf_filename}")
+                    file_result = ConversionFileResult(
+                        word_filename=word_path.name,
+                        pdf_filename=pdf_target_path.name,
+                        status="SUCCESS",
+                        duration_seconds=0.0,
+                    )
+                    converted_results.append(file_result)
+                    if progress_callback:
+                        await progress_callback({
+                            "stage": "CONVERTING",
+                            "current_file": word_path.name,
+                            "current_index": index,
+                            "total_to_convert": total_files,
+                            "converted_count": len(converted_results),
+                            "failed_count": len(failed_results),
+                            "file_result": file_result.model_dump(),
+                        })
+                    continue
+                else:
+                    # Corrupted or zero-byte PDF: delete and re-convert
+                    logger.warning(f"Removing invalid/incomplete PDF before re-conversion: {pdf_filename}")
+                    try:
+                        pdf_target_path.unlink()
+                    except Exception as e:
+                        logger.warning(f"Could not remove corrupted PDF {pdf_filename}: {e}")
+
+            # If PDF with this name exists, generate safe unique name
             if pdf_target_path.exists():
                 pdf_target_path = get_unique_destination_path(pdf_dir, pdf_filename)
 
@@ -338,6 +386,7 @@ class ConversionService:
                     "total_to_convert": total_files,
                     "converted_count": len(converted_results),
                     "failed_count": len(failed_results),
+                    "file_result": file_result.model_dump(),
                 })
 
         return {

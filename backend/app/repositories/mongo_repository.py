@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from typing import Any, Optional
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -14,6 +15,20 @@ class MongoRepository:
     def get_client(cls) -> Optional[AsyncIOMotorClient]:
         if not settings.ENABLE_MONGODB:
             return None
+
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+
+        if cls._client is not None:
+            try:
+                client_loop = cls._client.get_io_loop()
+                if client_loop.is_closed() or (current_loop and client_loop != current_loop):
+                    cls._client = None
+            except Exception:
+                cls._client = None
+
         if cls._client is None:
             try:
                 cls._client = AsyncIOMotorClient(
@@ -134,3 +149,151 @@ class MongoRepository:
         except Exception as e:
             logger.warning(f"Failed to query MongoDB conversion history: {e}")
             return []
+
+    @classmethod
+    def get_jobs_collection(cls):
+        client = cls.get_client()
+        if client is not None:
+            db = client[settings.MONGODB_DB_NAME]
+            return db["jobs"]
+        return None
+
+    @classmethod
+    async def create_or_update_job(cls, job_id: str, job_data: dict[str, Any]) -> bool:
+        """
+        Creates or updates a persistent job record in MongoDB.
+        """
+        if not settings.ENABLE_MONGODB:
+            return False
+
+        try:
+            col = cls.get_jobs_collection()
+            if col is None:
+                return False
+
+            now = datetime.now(timezone.utc)
+            update_fields = {**job_data, "updated_at": now}
+            set_on_insert = {"created_at": now}
+
+            await col.update_one(
+                {"job_id": job_id},
+                {"$set": update_fields, "$setOnInsert": set_on_insert},
+                upsert=True,
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to save job '{job_id}' to MongoDB: {e}")
+            return False
+
+    @classmethod
+    async def update_job_stage(
+        cls,
+        job_id: str,
+        stage: str,
+        step: Optional[int] = None,
+        is_unfinished: Optional[bool] = None,
+        **kwargs,
+    ) -> bool:
+        """
+        Updates the stage/step and arbitrary metadata fields for an active job.
+        """
+        if not settings.ENABLE_MONGODB:
+            return False
+
+        try:
+            col = cls.get_jobs_collection()
+            if col is None:
+                return False
+
+            now = datetime.now(timezone.utc)
+            fields: dict[str, Any] = {"stage": stage, "updated_at": now, **kwargs}
+            if step is not None:
+                fields["step"] = step
+            if is_unfinished is not None:
+                fields["is_unfinished"] = is_unfinished
+
+            await col.update_one(
+                {"job_id": job_id},
+                {"$set": fields},
+                upsert=False,
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to update job stage for '{job_id}': {e}")
+            return False
+
+    @classmethod
+    async def get_unfinished_jobs(cls) -> list[dict[str, Any]]:
+        """
+        Queries all incomplete or user-saved unfinished jobs.
+        """
+        if not settings.ENABLE_MONGODB:
+            return []
+
+        try:
+            col = cls.get_jobs_collection()
+            if col is None:
+                return []
+
+            query = {
+                "is_unfinished": True,
+                "stage": {"$nin": ["DISCARDED", "REMOVED"]},
+            }
+
+            cursor = col.find(query).sort("updated_at", -1)
+            records = []
+            async for doc in cursor:
+                doc["_id"] = str(doc["_id"])
+                if isinstance(doc.get("created_at"), datetime):
+                    doc["created_at"] = doc["created_at"].isoformat() + "Z"
+                if isinstance(doc.get("updated_at"), datetime):
+                    doc["updated_at"] = doc["updated_at"].isoformat() + "Z"
+                records.append(doc)
+            return records
+        except Exception as e:
+            logger.warning(f"Failed to query unfinished jobs: {e}")
+            return []
+
+    @classmethod
+    async def get_job(cls, job_id: str) -> Optional[dict[str, Any]]:
+        """
+        Retrieves a single job record by job_id.
+        """
+        if not settings.ENABLE_MONGODB:
+            return None
+
+        try:
+            col = cls.get_jobs_collection()
+            if col is None:
+                return None
+
+            doc = await col.find_one({"job_id": job_id})
+            if doc:
+                doc["_id"] = str(doc["_id"])
+                if isinstance(doc.get("created_at"), datetime):
+                    doc["created_at"] = doc["created_at"].isoformat() + "Z"
+                if isinstance(doc.get("updated_at"), datetime):
+                    doc["updated_at"] = doc["updated_at"].isoformat() + "Z"
+            return doc
+        except Exception as e:
+            logger.warning(f"Failed to get job '{job_id}' from MongoDB: {e}")
+            return None
+
+    @classmethod
+    async def delete_job(cls, job_id: str) -> bool:
+        """
+        Deletes or marks a job record as discarded in MongoDB.
+        """
+        if not settings.ENABLE_MONGODB:
+            return False
+
+        try:
+            col = cls.get_jobs_collection()
+            if col is None:
+                return False
+
+            res = await col.delete_one({"job_id": job_id})
+            return res.deleted_count > 0
+        except Exception as e:
+            logger.warning(f"Failed to delete job '{job_id}': {e}")
+            return False
