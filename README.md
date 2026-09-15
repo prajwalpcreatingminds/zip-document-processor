@@ -1,110 +1,125 @@
-# ZIP Document Processor — Pipeline & Word-to-PDF Converter
+# DocMorph — ZIP Document Processor & Pipeline
 
 A full-stack, enterprise document processing system built with **FastAPI (Python)**, **Next.js 16 (React / TypeScript / Tailwind CSS)**, and **MongoDB**.
 
 ---
 
 ## 📋 Table of Contents
-- [Frontend Folder Setup and Run](#-frontend-folder-setup-and-run)
-- [Backend Folder Setup and Run](#-backend-folder-setup-and-run)
-- [Workflow Overview](#-workflow-overview)
-- [Project Directory Structure](#-project-directory-structure)
-- [Output Folder Structure](#-output-folder-structure)
-- [API Endpoints Reference](#-api-endpoints-reference)
+- [✨ Key Features](#-key-features)
+- [💻 Frontend Setup & Run](#-frontend-setup-and-run)
+- [🐍 Backend Setup & Run](#-backend-setup-and-run)
+- [🔄 7-Step Workflow Overview](#-7-step-workflow-overview)
+- [📁 Project Directory Structure](#-project-directory-structure)
+- [🗂️ Output Folder Structure](#-output-folder-structure)
+- [🔌 API Endpoints Reference](#-api-endpoints-reference)
 
 ---
 
-## 💻 Frontend Folder Setup and Run:
+## ✨ Key Features
 
-1. **Extract the codebase zip**.
-2. **Open the Codebase Extracted Folder in Antigravity** by clicking **File -> Open Folder**.
-3. **Navigate to the Folder Path**, click on the Folder, and click the **“Select Folder”** button.
-4. **Go to the frontend folder**, type `cd frontend` in the terminal:
+1. **Multi-Format Archive Support (Feature 1)**:
+   - Full support for `.zip`, `.rar`, `.7z`, `.tar`, `.tgz`, `.tar.gz`, and `.tar.xz` archives up to 200MB.
+2. **Universal File Format Support & Organization (Feature 2)**:
+   - Preserves all archive contents without data loss.
+   - Automatically organizes non-document files into structured subfolders under `Other/` (`Images/`, `Spreadsheets/`, `Presentations/`, `Media/`, `Text_Data/`, `General/`).
+3. **Multiple Archive Upload & Batch Processing (Feature 3)**:
+   - Upload and process multiple archives in a single batch.
+   - Choose between **Same Parent Folder** or **Different Parent Folders** (per-archive mapping).
+   - Sequential processing queue with per-job failure isolation.
+4. **Resume Interrupted Jobs (Feature 4)**:
+   - Persistent job state in MongoDB across all workflow steps.
+   - **Unfinished Jobs UI**: View, resume, or discard interrupted/saved tasks.
+   - **File-Level Conversion Resume**: Inspects existing PDFs, skips valid ones, fixes corrupted/0-byte files, and converts only remaining Word documents.
+   - **Atomic Extraction Resume**: Interrupted extractions cleanly re-extract from the preserved archive.
+   - **Intentional Leave Guard**: 3-button modal (`Save & Exit`, `Don't Save`, `Cancel`) when leaving an active workflow.
+5. **In-Browser PDF Viewer (Feature 5)**:
+   - Click any generated or existing PDF filename in the Summary Report or Conversion History to view it directly inside an in-browser modal.
+   - Zero external libraries required (uses browser-native rendering via Base64 streaming).
+   - Strict server-side path traversal protection and validation.
+
+---
+
+## 💻 Frontend Setup and Run:
+
+1. **Open the repository in your terminal**.
+2. **Go to the frontend folder**:
    ```bash
-   cd frontend
+   cd docmorph-frontend
    ```
-5. **Type the command in the terminal**:
+3. **Install dependencies**:
    ```bash
    npm install
    ```
-6. **Type the command in the terminal**:
+4. **Start the development server**:
    ```bash
    npm run dev
    ```
-7. **Note**: On Windows, if it still didn't identify `npm run dev`, and says *"I don't have permission to run this"*, then run this command in PowerShell:
-   ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-   ```
-8. **Note**: Execute `npm run build`:
+   *Frontend will run at `http://localhost:3000`.*
+5. **Production Build**:
    ```bash
    npm run build
    ```
-   *When you run this command, Next.js takes your raw source code and transforms it into a version that is ready to be put on a live server for users to visit.*
 
 ---
 
-## 🐍 Backend Folder Setup and Run:
+## 🐍 Backend Setup and Run:
 
-1. **Extract the codebase zip**.
-2. **Open the Codebase Extracted Folder in Antigravity** by clicking **File -> Open Folder**.
-3. **Navigate to the Folder Path**, click on the Folder, and click the **“Select Folder”** button.
-4. **Go to the backend folder**, type `cd backend` in the terminal:
+1. **Go to the backend folder**:
    ```bash
-   cd backend
+   cd docmorph-backend
    ```
-5. **Type the command in the terminal**:
+2. **Create a virtual environment**:
    ```bash
    python -m venv venv
    ```
-6. **To activate the environment, type the command**:
-   - **a. In PowerShell**:
+3. **Activate the environment**:
+   - **PowerShell**:
      ```powershell
      .\venv\Scripts\Activate.ps1
      ```
-   - **b. In Command Prompt (CMD)**:
+   - **Command Prompt (CMD)**:
      ```cmd
      .\venv\Scripts\activate.bat
      ```
-   - **c. In Bash (Linux / macOS / Git Bash)**:
+   - **Bash (Linux / macOS)**:
      ```bash
-     source venv/Scripts/activate
-     # or on Linux/macOS:
-     # source venv/bin/activate
+     source venv/bin/activate
      ```
-7. **Then to install the requirements.txt, type the command**:
+4. **Install Python dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-8. **To run the code**:
-   - **a. Windows**:
+5. **Start the FastAPI backend**:
+   - **Windows**:
      ```bash
      make win
      ```
-     *(or `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload`)*
-   - **b. Linux / macOS**:
+     *(or `cd docmorph-backend && python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload`)*
+   - **Linux / macOS**:
      ```bash
      make dev
      ```
-     *(or `python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload`)*
+     *(or `cd docmorph-backend && python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload`)*
+   *Backend API runs at `http://127.0.0.1:8000` (Docs at `http://127.0.0.1:8000/docs`).*
 
 ---
 
-## 🔄 Workflow Overview
+## 🔄 7-Step Workflow Overview
 
 ```
-Step 1: Upload ZIP         → Select archive (.zip up to 200MB)
+Step 1: Upload Archive(s)  → Select single or multiple archives (.zip, .rar, .7z, .tar, .tgz, .tar.xz)
        ↓
-Step 2: Target Folder      → Specify destination folder (e.g. "job description", "resume")
+Step 2: Target Folder      → Choose "Same Folder" or "Different Folders" per archive
        ↓
-Step 3: Confirmation       → Review source archive and target folder before extraction
+Step 3: Confirmation       → Review archives, folder mappings, and queue order
        ↓
-Step 4: Extraction         → Unpacks into Output/<folder>/Word and Output/<folder>/PDF
+Step 4: Extraction         → Unpacks into Word/, PDF/, and Other/ subfolders; preserves archive
        ↓
-Step 5: Convert Decision   → Prompt user whether to convert Word files to PDF
+Step 5: Convert Decision   → Prompt user whether to convert Word documents (.doc / .docx) to PDF
        ↓
-Step 6: Conversion         → Converts .doc / .docx to PDF with live filename progress
+Step 6: Conversion         → Converts Word to PDF with live progress & file-level resume support
        ↓
-Step 7: Summary & Report   → Executive counts, detailed file table, and CSV report download
+Step 7: Summary & Report   → View summary, inspect files in In-Browser PDF Viewer, & download CSV
 ```
 
 ---
@@ -113,57 +128,78 @@ Step 7: Summary & Report   → Executive counts, detailed file table, and CSV re
 
 ```
 zip-document-processor/
-├── Makefile                 # Make automation targets (make win, make dev, make win-front)
-├── README.md                # Project documentation & setup instructions
-├── Output/                  # Processed job outputs (Word/, PDF/, original ZIP)
-├── backend/                 # FastAPI Python REST API
+│
+├── docmorph-frontend/
 │   ├── app/
-│   │   ├── api/             # API routes (/upload, /extract, /convert, /history)
-│   │   ├── config/          # Settings & environment configuration
-│   │   ├── models/          # Pydantic schemas
-│   │   ├── repositories/    # MongoDB database repository
+│   │   ├── confirmation/    # Step 3: Batch Confirmation & Review
+│   │   ├── conversion/      # Step 6: Conversion Progress
+│   │   ├── decision/        # Step 5: Convert Decision
+│   │   ├── extraction/      # Step 4: Extraction Progress
+│   │   ├── folder/          # Step 2: Target Folder Selection (Single / Batch modes)
+│   │   ├── history/         # MongoDB Conversion History Viewer
+│   │   ├── summary/         # Step 7: Summary & File Processing Report
+│   │   ├── upload/          # Step 1: Upload Archive(s) & Unfinished Jobs Banner
+│   │   ├── layout.tsx       # Root layout & shell
+│   │   └── page.tsx         # Root redirect
+│   │
+│   ├── components/          # UI components (PdfViewerModal, LeaveWorkflowModal, Header, etc.)
+│   ├── context/             # WorkflowContext state & resume manager
+│   ├── hooks/               # Custom React hooks
+│   ├── lib/                 # Frontend API client & shared utilities
+│   ├── public/              # Static SVG and web assets
+│   ├── styles/              # Global styles (globals.css)
+│   ├── types/               # TypeScript interfaces & definitions
+│   ├── next.config.ts       # Next.js configuration
+│   ├── package.json         # Frontend dependencies & scripts
+│   ├── tsconfig.json        # TypeScript configuration (root path alias @/*)
+│   └── postcss.config.mjs   # Tailwind CSS PostCSS configuration
+│
+├── docmorph-backend/
+│   ├── app/
+│   │   ├── api/             # API routes (/upload, /batch, /extract, /convert, /jobs, /pdf/view)
+│   │   ├── core/            # Core business logic / application core
+│   │   ├── models/          # Persistent domain models (models.py)
+│   │   ├── schemas/         # Pydantic request/response schemas (schemas.py)
 │   │   ├── services/        # ConversionService, ZipService, DocumentService
 │   │   └── utils/           # Security sanitization & logger
-│   ├── Makefile             # Backend-specific Makefile (make win, make dev)
+│   │
+│   ├── config/              # Application settings & environment configuration
+│   ├── repositories/        # MongoDB database repository
+│   ├── scripts/             # Maintenance & execution scripts
+│   ├── tests/               # Automated test suites
+│   ├── main.py              # FastAPI application entry point
 │   ├── requirements.txt     # Python dependencies
 │   ├── .env                 # Backend environment config
 │   └── .env.example         # Environment template
-└── frontend/                # Next.js 16 / TypeScript / Tailwind CSS UI
-    ├── src/
-    │   ├── app/
-    │   │   ├── upload/      # Step 1: Upload ZIP
-    │   │   ├── folder/      # Step 2: Target Folder
-    │   │   ├── confirmation/# Step 3: Confirmation
-    │   │   ├── extraction/  # Step 4: Extraction
-    │   │   ├── decision/    # Step 5: Convert Decision
-    │   │   ├── conversion/  # Step 6: Conversion Progress
-    │   │   ├── summary/     # Step 7: Summary & Processing Report
-    │   │   ├── layout.tsx   # Root layout & shell
-    │   │   └── page.tsx     # Root entry point
-    │   ├── components/      # UI components & FileProcessingReport
-    │   ├── context/         # WorkflowContext state manager
-    │   ├── services/        # Backend API fetch client
-    │   └── types/           # TypeScript interfaces
-    └── package.json         # Frontend dependencies
+│
+├── Output/                  # Processed job outputs (Word/, PDF/, Other/, original archives)
+├── Makefile                 # Make automation targets (make win, make dev, make win-front)
+└── README.md                # Project documentation & setup instructions
 ```
 
 ---
 
 ## 🗂️ Output Folder Structure
 
-When a ZIP is processed into a folder name (e.g. `job description`), it is organized in the root `Output/` directory:
+When an archive is processed into a folder name (e.g. `Project_Reports`), it is organized in the root `Output/` directory:
 
 ```
 Output/
-└── job description/
-    ├── documents.zip        # Original uploaded ZIP file (preserved)
+└── Project_Reports/
+    ├── documents.zip        # Original uploaded archive (preserved)
     ├── Word/                # All original .doc and .docx files (untouched)
     │   ├── developer.docx
     │   └── analyst.doc
-    └── PDF/                 # Generated PDFs + any pre-existing PDFs
-        ├── policy.pdf       # (Existing PDF from ZIP)
-        ├── developer.pdf    # (Converted from developer.docx)
-        └── analyst.pdf      # (Converted from analyst.doc)
+    ├── PDF/                 # Generated PDFs + any pre-existing PDFs
+    │   ├── policy.pdf       # (Existing PDF from archive)
+    │   ├── developer.pdf    # (Converted from developer.docx)
+    │   └── analyst.pdf      # (Converted from analyst.doc)
+    └── Other/               # All other retained file types
+        ├── Images/          # (.png, .jpg, .svg, etc.)
+        ├── Spreadsheets/    # (.xlsx, .csv, etc.)
+        ├── Presentations/   # (.pptx, etc.)
+        ├── Text_Data/       # (.txt, .json, .py, etc.)
+        └── Media/           # (.mp3, .mp4, etc.)
 ```
 
 ---
@@ -172,10 +208,18 @@ Output/
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/upload` | Stages uploaded ZIP file and user-specified folder name. |
-| `POST` | `/api/extract` | Extracts and classifies files into `Word/` and `PDF/` folders. |
-| `POST` | `/api/convert` | Converts Word documents in `Word/` to PDF in `PDF/` and logs to MongoDB. |
+| `POST` | `/api/upload` | Stages single archive file (.zip, .rar, .7z, .tar, .tgz, .tar.xz). |
+| `POST` | `/api/batch/upload` | Stages multiple archives with folder mode (`SAME` or `DIFFERENT`). |
+| `GET` | `/api/batch/status/{batch_id}` | Returns real-time aggregate progress for a multi-archive batch. |
+| `POST` | `/api/extract` | Extracts and classifies files into `Word/`, `PDF/`, and `Other/`. |
+| `POST` | `/api/convert` | Converts Word files to PDF with file-level resume (skips valid PDFs). |
 | `POST` | `/api/finish-without-conversion` | Finalizes job when user chooses to skip conversion. |
-| `GET` | `/api/status/{job_id}` | Returns live progress state for conversion tracking. |
-| `GET` | `/api/history` | Returns conversion metadata audit logs from MongoDB. |
+| `GET` | `/api/jobs/unfinished` | Returns all incomplete or user-saved unfinished jobs. |
+| `POST` | `/api/jobs/resume/{job_id}` | Recovers and resumes an interrupted job from safe state. |
+| `POST` | `/api/jobs/save-exit` | Saves active job state for later resume (`Save & Exit`). |
+| `POST` | `/api/jobs/discard/{job_id}` | Safely discards an unfinished job. |
+| `POST` | `/api/pdf/view` | Securely retrieves and Base64-encodes a PDF for in-browser viewing. |
+| `GET` | `/api/file-tree/{job_id}` | Returns filesystem hierarchy for the job output directory. |
+| `GET` | `/api/status/{job_id}` | Returns live progress state for single job tracking. |
+| `GET` | `/api/history` | Queries conversion metadata records from MongoDB. |
 | `GET` | `/api/health` | Service health status and MongoDB connection state. |

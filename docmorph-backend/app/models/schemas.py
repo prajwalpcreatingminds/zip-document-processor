@@ -1,0 +1,40 @@
+# Compatibility bridge re-exporting models and schemas from their new locations
+from app.models.models import ConversionRecordModel
+from app.schemas.schemas import (
+    UploadResponse,
+    ExtractRequest,
+    ExtractionResponse,
+    ConvertRequest,
+    ConversionFileResult,
+    ConversionResponse,
+    JobStatusResponse,
+    BatchJobInfo,
+    BatchUploadResponse,
+    BatchStatusResponse,
+    UnfinishedJobItem,
+    UnfinishedJobsResponse,
+    ResumeJobResponse,
+    SaveExitRequest,
+    PdfViewRequest,
+    PdfViewResponse,
+)
+
+__all__ = [
+    "ConversionRecordModel",
+    "UploadResponse",
+    "ExtractRequest",
+    "ExtractionResponse",
+    "ConvertRequest",
+    "ConversionFileResult",
+    "ConversionResponse",
+    "JobStatusResponse",
+    "BatchJobInfo",
+    "BatchUploadResponse",
+    "BatchStatusResponse",
+    "UnfinishedJobItem",
+    "UnfinishedJobsResponse",
+    "ResumeJobResponse",
+    "SaveExitRequest",
+    "PdfViewRequest",
+    "PdfViewResponse",
+]
